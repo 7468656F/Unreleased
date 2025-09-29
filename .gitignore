@@ -1,0 +1,11 @@
+.gitold/
+bin/
+obj/
+/packages/
+riderModule.iml
+/_ReSharper.Caches/
+.idea/
+*.sln.DotSettings.User
+/Unreleased.SheetsAPI/Spreadsheets
+appsettings.json
+.env
