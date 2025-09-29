@@ -10,7 +10,7 @@ public record Era(
     string? Description // some trackers (e.g.: Eminem Tracker) don't have a description
 )
 {
-    public string GetTitle() => Name.Split('\n').First();
+    public string GetTitle() => Name.Split('\n').First().Trim();
 
     public string[] GetAliases()
     {

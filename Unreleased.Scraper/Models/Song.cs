@@ -38,7 +38,17 @@ public record Song(
         DateTime? leakDate,
         string? notes,
         Dictionary<string, string> links
-    ) : this(name, era, type, portion, quality, trackLength, fileDate, leakDate, notes, links)
+    ) : this(
+        name.Trim(),
+        era.Trim(),
+        type.Trim(),
+        portion.Trim(),
+        quality.Trim(),
+        trackLength,
+        fileDate,
+        leakDate,
+        notes?.Trim(),
+        links)
     {
         this.TrackerTitle = trackerTitle;
     }
@@ -56,7 +66,12 @@ public record Song(
         var (extractedEmoji, extractedArtist, extractedTitle, extractedVersion, extractedFeatures, extractedProducers) =
             NameUtilities.ExtractNameValues(lines);
 
-        _extractedValues = (extractedEmoji, extractedArtist, extractedTitle, extractedVersion, extractedFeatures,
+        _extractedValues = (
+            extractedEmoji?.Trim(),
+            extractedArtist?.Trim(),
+            extractedTitle.Trim(),
+            extractedVersion,
+            extractedFeatures,
             extractedProducers);
         return _extractedValues;
     }
@@ -98,7 +113,7 @@ public record Song(
 
         if (!string.IsNullOrEmpty(artistFromTitle))
         {
-            artists.Add(artistFromTitle);
+            artists.Add(artistFromTitle.Trim());
         }
         else
         {
@@ -162,10 +177,10 @@ public record Song(
         if (GetOgFileName() != null)
         {
             var lines = Notes.Split('\n');
-            return string.Join('\n', lines.Skip(1));
+            return string.Join('\n', lines.Skip(1)).Trim();
         }
         
-        return Notes;
+        return Notes.Trim();
     }
     
     public string[] GetAliases()
@@ -179,4 +194,6 @@ public record Song(
             .TrimEnd(')')
             .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
+
+    public string GetDebugTitle() => $"{GetTitle()} v{GetVersion() ?? 1} [{Era}]";
 };

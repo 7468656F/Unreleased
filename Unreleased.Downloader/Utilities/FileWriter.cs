@@ -111,7 +111,7 @@ public class FileWriter
     private static string GetDefaultOutputDirectory(Song song, Era era, string trackerName)
     {
         var sanitizedTrackerName = NameSanitizer.Sanitize(trackerName);
-        var sanitizedEra = NameSanitizer.Sanitize(era.GetTitle());
+        var sanitizedEra = NameSanitizer.Sanitize(era.GetTitle()); // TODO: if more than 60% of name is sanitized, try aliases
         
         var musicFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyMusic);
         var outputDirectory = Path.Combine(musicFolder, $"Unreleased/{sanitizedTrackerName}/{sanitizedEra}");
@@ -155,6 +155,8 @@ public class FileWriter
         if (outputDirectory is null)
             outputDirectory = GetDefaultOutputDirectory(song, era, trackerName);
         
+        outputDirectory = Path.GetFullPath(outputDirectory);
+        
         var formattedFileName = FormatFileName(song, era, fileName, fallbackToOgFilename: false);
         var safeFileName = NameSanitizer.Sanitize(formattedFileName);
         
@@ -164,16 +166,16 @@ public class FileWriter
         if (Directory.GetFiles(outputDirectory).Any(filename => Path.GetFileNameWithoutExtension(filename) == safeFileName))
             throw new IOException($"A file named '{safeFileName}' already exists in the directory '{outputDirectory}'.");
 
-        Debug.WriteLine("Downloading file");
+        Debug.WriteLine($"Downloading {song.GetDebugTitle()} file");
         
         var downloader = new Downloader(zyteApiKey, httpClient);
         var fileBytes = await downloader.DownloadAsync(host, fileId);
 
-        Debug.WriteLine("Transcoding file");
+        Debug.WriteLine($"Transcoding {song.GetDebugTitle()} file");
 
         var filePath = await Transcoding.Transcoder.TranscodeAndSaveBytes(fileBytes, safeFileName, outputDirectory);
         
-        Debug.WriteLine("Writing metadata");
+        Debug.WriteLine($"Writing metadata for {song.GetDebugTitle()}");
         await WriteMetadataToFile(song, era, filePath, httpClient);
         
         return Path.GetFullPath(filePath);

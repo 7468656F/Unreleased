@@ -8,7 +8,6 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Unreleased.Scraper\Unreleased.Scraper.csproj" />
-      <ProjectReference Include="..\Unreleased.SheetsAPI\Unreleased.SheetsAPI.csproj" />
     </ItemGroup>
 
     <ItemGroup>

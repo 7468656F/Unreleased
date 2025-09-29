@@ -1,10 +1,8 @@
 ﻿using System.Diagnostics;
-using HtmlAgilityPack;
 using Unreleased.Downloader;
 using Unreleased.Scraper.Models;
 using Unreleased.Scraper.Utilities;
 using static Unreleased.Scraper.Parsers.RowParser;
-using File = System.IO.File;
 using dotenv.net;
 using Microsoft.Extensions.Configuration;
 
@@ -12,6 +10,31 @@ namespace Unreleased.CLI;
 
 class Program
 {
+    private static string[] SongMatchesFilters(Song song)
+    {
+        bool linksOk = song.Links.Count > 0;
+        bool typeOk = song.Type is "Throwaway" or "OG" or "OG File" or "Demo" or "High Bitrate Rip";
+        bool portionOk = song.Portion is "Full" or "OG" or "OG File";
+        bool qualityOk = song.Quality is "Lossless" or "CD Quality" or "High Quality";
+        bool ogSongOk = !((song.Type == "OG" || song.Type == "OG File") &&
+                         (song.Portion == "OG" || song.Portion == "OG File"));
+
+        List<string> invalidReasons = [];
+        
+        if (!typeOk)
+            invalidReasons.Add($"Type: {song.Type}");
+        if (!portionOk)
+            invalidReasons.Add($"Portion: {song.Portion}");
+        if (!qualityOk)
+            invalidReasons.Add($"Quality: {song.Quality}");
+        if (!linksOk)
+            invalidReasons.Add("No valid download link");
+        if (!ogSongOk)
+            invalidReasons.Add("OG song");
+        
+        return invalidReasons.ToArray();
+    }
+    
     public static async Task Main(string[] args)
     {
         DotEnv.Load();
@@ -61,67 +84,66 @@ class Program
             switch (row)
             {
                 case Song song:
-                    if ((song.Type == "OG" || song.Type == "OG File") &&
-                        (song.Portion == "OG" || song.Portion == "OG File"))
-                    {
-                        Debug.WriteLine("Skipping OG song");
-                        continue;
-                    }
-                    
-                    var highestVersion = songs
-                        .Where(s => s.GetTitle() == song.GetTitle())
-                        .OrderByDescending(s => s.GetVersion())
-                        .FirstOrDefault()!
-                        .GetVersion();
-                    
-                    if (song.GetVersion() != highestVersion) // DESIGN: only download the highest version of a song
-                    {
-                        Debug.WriteLine($"Skipping {song.GetTitle()} v{song.GetVersion()} (not highest version)");
-                        continue;
-                    }
-                    
-                    if (song.Links.Count == 0 || song is not
-                        {
-                            Type: "Throwaway" or "OG" or "OG File" or "Demo",
-                            Portion: "Full" or "OG" or "OG File",
-                            Quality: "Lossless" or "CD Quality" or "High Quality"
-                        })
-                    {
-                        Debug.WriteLine($"Skipping {song.GetTitle()} v{song.GetVersion() ?? 1 } [{song.Era}] (no valid download link or invalid type/portion/quality)");
-                        continue;
-                    }
-
-                    Debug.WriteLine($"Writing {song.GetTitle()} v{song.GetVersion() ?? 1} [{previousEra?.GetTitle()}] LinkCount: {song.Links.Count}");
-                    
-                    string? outputPath;
-                    try
-                    {
-                        outputPath = await FileWriter.WriteSongToFile(song, previousEra!, zyteApiKey: zyteApiKey, trackerName: trackerName);
-                    }
-                    catch (IOException e)
-                    {
-                        Debug.WriteLine($"Skipped {song.GetTitle()} [{previousEra!.GetTitle()}]: {e.Message}");
-                        continue;
-                    }
-                    catch (ArgumentException e)
-                    {
-                        Debug.WriteLine($"Skipped {song.GetTitle()} [{previousEra!.GetTitle()}]: {e.Message}");
-                        continue;
-                    }
-                    
-                    
-                    Console.WriteLine($"Wrote {outputPath}");
-                    
-                    break;
+                    await ProcessSongAsync(songs, song, previousEra, zyteApiKey, trackerName);
+                    continue;
                 case Era era:
                     previousEra = era;
                     break;
             }
         }
         
+        // TODO: show eta, progress bar, etc.
+        
         sw.Stop();
         Debug.WriteLine($"Processed {processedRows.Length} rows in {sw.ElapsedMilliseconds} ms ({Math.Round((double)sw.ElapsedMilliseconds / processedRows.Length, 2)} ms/row)");
-        Console.ReadLine();
+    }
+
+    private static async Task ProcessSongAsync(Song[] songs, Song song, Era? previousEra, string zyteApiKey,
+        string trackerName)
+    {
+        var highestVersion = songs
+            .Where(s => s.GetTitle() == song.GetTitle() &&
+                        SongMatchesFilters(s).Length == 0)
+            .OrderByDescending(s => s.GetVersion())
+            .FirstOrDefault()?
+            .GetVersion();
+
+        if (song.GetVersion() != highestVersion) // DESIGN: only download the highest version of a song
+        {
+            Debug.WriteLine($"Skipping {song.GetDebugTitle()} (not highest version)");
+            return;
+        }
+                    
+        var invalidReasons = SongMatchesFilters(song);
+        if (invalidReasons.Length > 0)
+        {
+            Debug.WriteLine($"Skipping {song.GetDebugTitle()} due to invalid attributes: " + string.Join(", ", invalidReasons));
+            return;
+        }
+
+
+        Debug.WriteLine($"Writing {song.GetDebugTitle()} LinkCount: {song.Links.Count}");
+
+        string? outputPath;
+        try
+        {
+            outputPath = await FileWriter.WriteSongToFile(song, previousEra!, zyteApiKey: zyteApiKey, trackerName: trackerName);
+        }
+        catch (IOException e)
+        {
+            Debug.WriteLine($"Skipped {song.GetDebugTitle()}: {e.Message}");
+            return;
+        }
+        catch (ArgumentException e)
+        {
+            Debug.WriteLine($"Skipped {song.GetDebugTitle()}: {e.Message}");
+            return;
+        }
+
+
+        Console.WriteLine($"Wrote {outputPath}");
+
+        return;
     }
 
     private static string? GetInput(string prompt)

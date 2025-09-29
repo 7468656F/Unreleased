@@ -122,7 +122,7 @@ public class RowParser
         string[]? headers = null;
         foreach (var (index, row) in rows)
         {
-            if (row.ChildNodes.Count(node => node.HasChildNodes) >= 11
+            if (row.ChildNodes.Count >= 11
                 && headers is null) // DESIGN: header row has at least 11 columns (including row number)
             {
                 headers = GetHeaders(row);
