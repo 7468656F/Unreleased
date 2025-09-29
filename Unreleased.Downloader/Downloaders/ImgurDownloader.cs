@@ -1,6 +1,4 @@
-﻿using Unreleased.SheetsAPI.Scraper;
-
-namespace Unreleased.Downloader.Downloaders;
+﻿namespace Unreleased.Downloader.Downloaders;
 
 public class ImgurDownloader(HttpClient httpClient, string zyteApiKey) : BaseDownloader(httpClient, zyteApiKey)
 {

@@ -1,5 +1,4 @@
 ﻿using Unreleased.Downloader.Utilities;
-using Unreleased.SheetsAPI.Scraper;
 
 namespace Unreleased.Downloader.Downloaders;
 
